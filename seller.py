@@ -12,7 +12,25 @@ logger = logging.getLogger(__file__)
 
 
 def get_product_list(last_id, client_id, seller_token):
-    """Получить список товаров магазина озон"""
+    """Получает список товаров магазина OZON.
+    
+    Args:
+        last_id (str): Последний id
+        client_id (str): id клиена
+        seller_token (str): API-токен продавца
+        
+    Returns:
+        (dict): Массив с информацией о товарах, выставленных на OZON
+    
+    Example: 
+        some_prod = get_product_list(last_id, client_id, seller_token)
+        >>> print(response_object.get("result"))
+        {"Массив с ответом"}
+
+    Example: 
+        >>> print(response_object.get("result"))
+        requests.exceptions.HTTP
+    """
     url = "https://api-seller.ozon.ru/v2/product/list"
     headers = {
         "Client-Id": client_id,
@@ -32,7 +50,20 @@ def get_product_list(last_id, client_id, seller_token):
 
 
 def get_offer_ids(client_id, seller_token):
-    """Получить артикулы товаров магазина озон"""
+    """Получает артикулы товаров OZON.
+    
+    Args:
+        client_id (str): id клиена
+        seller_token (str): API-токен продавца
+
+    Returns:
+        (list): Список с информацией id часов
+    
+    Example: 
+        offer_ids = get_offer_ids(client_id, seller_token)
+        >>> print(offer_ids)
+        "Список с id часов"
+    """
     last_id = ""
     product_list = []
     while True:
@@ -49,7 +80,24 @@ def get_offer_ids(client_id, seller_token):
 
 
 def update_price(prices: list, client_id, seller_token):
-    """Обновить цены товаров"""
+    """Обновляет цены товаров.
+    
+    Args:
+        prices (list): Прайс-лист для обновления
+        seller_token (str): API-токен продавца
+        client_id (str): id клиена
+
+    Returns:
+        (dict): Словарь с обновленными ценами
+    
+    Example: 
+        >>> print(response.json())
+         {"Массив с ответом"}
+
+    Example: 
+        >>> print(response.json())
+        requests.exceptions.HTTPError
+    """
     url = "https://api-seller.ozon.ru/v1/product/import/prices"
     headers = {
         "Client-Id": client_id,
@@ -62,7 +110,24 @@ def update_price(prices: list, client_id, seller_token):
 
 
 def update_stocks(stocks: list, client_id, seller_token):
-    """Обновить остатки"""
+    """Обновляет остатки.
+    
+    Args:
+        stocks (list): Список остатков для обновления
+        seller_token (str): API-токен продавца
+        client_id (str): id клиена
+
+    Returns:
+        (dict): Словарь с обновленными часами
+    
+    Example: 
+        >>> print(response.json())
+         {"Массив с ответом"}
+
+    Example: 
+        >>> print(response.json())
+        requests.exceptions.HTTPError
+    """
     url = "https://api-seller.ozon.ru/v1/product/import/stocks"
     headers = {
         "Client-Id": client_id,
@@ -75,15 +140,23 @@ def update_stocks(stocks: list, client_id, seller_token):
 
 
 def download_stock():
-    """Скачать файл ostatki с сайта casio"""
-    # Скачать остатки с сайта
+    """Скачивает файл с остатками часов.
+
+    Returns:
+        (dict): Словарь с информацией об остатках часов
+
+    Example: 
+        watch_remnants = download_stock()
+        >>> print(watch_remnants)
+        {"Массив с ответом"}
+    """
     casio_url = "https://timeworld.ru/upload/files/ostatki.zip"
     session = requests.Session()
     response = session.get(casio_url)
     response.raise_for_status()
     with response, zipfile.ZipFile(io.BytesIO(response.content)) as archive:
         archive.extractall(".")
-    # Создаем список остатков часов:
+    
     excel_file = "ostatki.xls"
     watch_remnants = pd.read_excel(
         io=excel_file,
@@ -91,12 +164,25 @@ def download_stock():
         keep_default_na=False,
         header=17,
     ).to_dict(orient="records")
-    os.remove("./ostatki.xls")  # Удалить файл
+    os.remove("./ostatki.xls")
     return watch_remnants
 
 
 def create_stocks(watch_remnants, offer_ids):
-    # Уберем то, что не загружено в seller
+    """Функция создает список часов для продажи.
+
+    Args:
+        watch_remnants (dict): Словарь с информацией по остаткам часов с сайта Casio
+        offer_ids (list): Список с id часов
+
+    Returns:
+        (list): Список с информацией о продаваемых часах.
+
+    Example:
+        stocks = create_stocks(watch_remnants, offer_ids) 
+        >>> print(stocks)
+        "Список с информацией о продаваемых часах"
+    """
     stocks = []
     for watch in watch_remnants:
         if str(watch.get("Код")) in offer_ids:
@@ -109,13 +195,26 @@ def create_stocks(watch_remnants, offer_ids):
                 stock = int(watch.get("Количество"))
             stocks.append({"offer_id": str(watch.get("Код")), "stock": stock})
             offer_ids.remove(str(watch.get("Код")))
-    # Добавим недостающее из загруженного:
     for offer_id in offer_ids:
         stocks.append({"offer_id": offer_id, "stock": 0})
     return stocks
 
 
 def create_prices(watch_remnants, offer_ids):
+    """Создание прайса.
+    
+    Args:
+        watch_remnants (dict): Словарь с информацией по остаткам часов с сайта Casio
+        offer_ids (list): Список с id часов
+    
+    Returns:
+        (list): Список с информацией о ценах
+    
+    Example: 
+        prices = create_prices(watch_remnants, offer_ids)
+        >>> print(prices)
+        'Список с информацией о ценах'
+    """
     prices = []
     for watch in watch_remnants:
         if str(watch.get("Код")) in offer_ids:
@@ -131,17 +230,50 @@ def create_prices(watch_remnants, offer_ids):
 
 
 def price_conversion(price: str) -> str:
-    """Преобразовать цену. Пример: 5'990.00 руб. -> 5990"""
+    """Конвертация цены.
+    
+    Args:
+        price (str): Цена
+    
+    Returns:
+        (str): Преобразованная цена
+    
+    Example: 
+        5'990.00 руб. -> 5990
+    """
     return re.sub("[^0-9]", "", price.split(".")[0])
 
 
 def divide(lst: list, n: int):
-    """Разделить список lst на части по n элементов"""
+    """Разделяет список lst на части по n элементов
+    Args:
+        lst (list): Разделяемый список
+        n (int): Количество элементов в срезе списка
+
+    Returns:
+        (list): Срез списка
+
+    Example: 
+        for some_stock in list(divide(stocks, 2)):
+        >>>print(some_stock)
+        [3300, 4990]
+        [4799, 2999]
+    """
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
 
 
 async def upload_prices(watch_remnants, client_id, seller_token):
+    """Запрашивает цены на товары и обновляет их.
+
+    Args:
+        watch_remnants (dict): Словарь с информацией по остаткам часов с сайта Casio
+        seller_token (str): API-токен продавца
+        client_id (str): id клиена
+
+    Returns:
+        (list): Список обновленных цен
+    """
     offer_ids = get_offer_ids(client_id, seller_token)
     prices = create_prices(watch_remnants, offer_ids)
     for some_price in list(divide(prices, 1000)):
@@ -150,6 +282,16 @@ async def upload_prices(watch_remnants, client_id, seller_token):
 
 
 async def upload_stocks(watch_remnants, client_id, seller_token):
+    """Запрашивает список с часами и обновляет их.
+
+    Args:
+        watch_remnants (dict): Словарь с информацией по остаткам часов с сайта Casio
+        seller_token (str): API-токен продавца
+        client_id (str): id клиена
+
+    Returns:
+        (list): Список обновленных часов
+    """
     offer_ids = get_offer_ids(client_id, seller_token)
     stocks = create_stocks(watch_remnants, offer_ids)
     for some_stock in list(divide(stocks, 100)):
@@ -165,11 +307,9 @@ def main():
     try:
         offer_ids = get_offer_ids(client_id, seller_token)
         watch_remnants = download_stock()
-        # Обновить остатки
         stocks = create_stocks(watch_remnants, offer_ids)
         for some_stock in list(divide(stocks, 100)):
             update_stocks(some_stock, client_id, seller_token)
-        # Поменять цены
         prices = create_prices(watch_remnants, offer_ids)
         for some_price in list(divide(prices, 900)):
             update_price(some_price, client_id, seller_token)
